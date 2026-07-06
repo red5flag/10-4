@@ -1,0 +1,1 @@
+/home/red/Projects/104/target/release/libpi_kiosk_core.rlib: /home/red/Projects/104/crates/core/src/config.rs /home/red/Projects/104/crates/core/src/error.rs /home/red/Projects/104/crates/core/src/lib.rs /home/red/Projects/104/crates/core/src/types.rs

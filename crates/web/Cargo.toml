@@ -1,0 +1,48 @@
+[package]
+name = "pi-kiosk-web"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+pi-kiosk-core = { workspace = true }
+pi-kiosk-camera = { workspace = true }
+pi-kiosk-detection = { workspace = true }
+pi-kiosk-modem = { workspace = true }
+pi-kiosk-network = { workspace = true }
+pi-kiosk-db = { path = "../db" }
+pi-kiosk-privileged = { path = "../privileged" }
+
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+thiserror = { workspace = true }
+argon2 = { workspace = true }
+cookie = { workspace = true }
+
+axum = "0.7"
+tower = "0.5"
+tower-http = { version = "0.6", features = ["fs", "trace", "cors"] }
+
+leptos = { version = "0.6", features = ["ssr"] }
+leptos_axum = "0.6"
+leptos_router = { version = "0.6", features = ["ssr"] }
+leptos_meta = { version = "0.6", features = ["ssr"] }
+
+futures = "0.3"
+async-trait = "0.1"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+tokio-rustls = "0.26"
+rustls = "0.23"
+rustls-pemfile = "2"
+hyper = { version = "1", features = ["http1", "server"] }
+hyper-util = { version = "0.1", features = ["server", "tokio"] }
+
+[package.metadata.leptos]
+output_dir = "target/site"
+site-root = ""
+bin.target = "pi-kiosk-web"

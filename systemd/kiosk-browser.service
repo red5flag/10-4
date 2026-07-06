@@ -1,0 +1,23 @@
+[Unit]
+Description=Pi Kiosk Touchscreen Browser (Kiosk Mode)
+After=pi-kiosk-web.service
+Requires=pi-kiosk-web.service
+
+[Service]
+Type=simple
+User=pikiosk
+Group=pikiosk
+Environment=DISPLAY=:0
+ExecStart=/usr/bin/chromium-browser --kiosk --noerrdialogs --disable-translate --no-first-run --fast --fast-start --disable-gpu --no-sandbox http://127.0.0.1:3000
+Restart=always
+RestartSec=2
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/pi-kiosk
+PrivateTmp=true
+
+[Install]
+WantedBy=graphical.target

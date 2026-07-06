@@ -1,0 +1,17 @@
+[package]
+name = "pi-kiosk-db"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+pi-kiosk-core = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+thiserror = { workspace = true }
+rusqlite = { version = "0.31", features = ["bundled"] }
+tracing = { workspace = true }
+tokio = { workspace = true }
+argon2 = { workspace = true }
+rand = { workspace = true }

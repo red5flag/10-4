@@ -1,0 +1,8 @@
+/home/red/Projects/104/target/debug/deps/pi_kiosk_core-d30613bfcd21c218.d: crates/core/src/lib.rs crates/core/src/config.rs crates/core/src/error.rs crates/core/src/types.rs
+
+/home/red/Projects/104/target/debug/deps/libpi_kiosk_core-d30613bfcd21c218.rmeta: crates/core/src/lib.rs crates/core/src/config.rs crates/core/src/error.rs crates/core/src/types.rs
+
+crates/core/src/lib.rs:
+crates/core/src/config.rs:
+crates/core/src/error.rs:
+crates/core/src/types.rs:

@@ -1,0 +1,10 @@
+pub mod camera;
+pub mod dashboard;
+pub mod detection;
+pub mod failover;
+pub mod login;
+pub mod modem;
+pub mod network;
+pub mod notifications;
+pub mod settings;
+pub mod vpn;

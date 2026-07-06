@@ -1,0 +1,37 @@
+[Unit]
+Description=Pi Kiosk Web Server (Leptos + Axum)
+After=network.target
+Wants=pi-kiosk-priv.service
+
+[Service]
+Type=simple
+User=pikiosk
+Group=pikiosk
+ExecStart=/usr/local/bin/pi-kiosk-web
+Environment=RUST_LOG=pi_kiosk_web=info,tower_http=info
+Environment=PI_KIOSK_DB=/var/lib/pi-kiosk/kiosk.db
+Restart=on-failure
+RestartSec=3
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/pi-kiosk
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+LockPersonality=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service @network-io
+SystemCallFilter=~@privileged @resources
+
+# Resource limits
+LimitNOFILE=4096
+MemoryMax=512M
+
+[Install]
+WantedBy=multi-user.target

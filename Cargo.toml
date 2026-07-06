@@ -1,0 +1,46 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/core",
+    "crates/camera",
+    "crates/db",
+    "crates/detection",
+    "crates/modem",
+    "crates/network",
+    "crates/privileged",
+    "crates/web",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/local/pi-kiosk"
+
+[workspace.dependencies]
+pi-kiosk-core = { path = "crates/core" }
+pi-kiosk-camera = { path = "crates/camera" }
+pi-kiosk-db = { path = "crates/db" }
+pi-kiosk-detection = { path = "crates/detection" }
+pi-kiosk-modem = { path = "crates/modem" }
+pi-kiosk-network = { path = "crates/network" }
+pi-kiosk-privileged = { path = "crates/privileged" }
+
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+thiserror = "1"
+anyhow = "1"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+argon2 = "0.5"
+rand = "0.8"
+cookie = "0.18"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = true

@@ -1,0 +1,6 @@
+/home/red/Projects/104/target/debug/deps/drain_filter_polyfill-1a93c9ebdce2c1ec.d: /home/red/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/drain_filter_polyfill-0.1.3/src/lib.rs /home/red/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/drain_filter_polyfill-0.1.3/src/copypasted_impl.rs
+
+/home/red/Projects/104/target/debug/deps/libdrain_filter_polyfill-1a93c9ebdce2c1ec.rmeta: /home/red/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/drain_filter_polyfill-0.1.3/src/lib.rs /home/red/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/drain_filter_polyfill-0.1.3/src/copypasted_impl.rs
+
+/home/red/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/drain_filter_polyfill-0.1.3/src/lib.rs:
+/home/red/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/drain_filter_polyfill-0.1.3/src/copypasted_impl.rs:
