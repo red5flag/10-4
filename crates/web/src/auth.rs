@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Request, State},
+    extract::Request,
     http::{header, StatusCode},
     middleware::Next,
     response::{IntoResponse, Redirect, Response},
@@ -12,7 +12,7 @@ pub const SESSION_COOKIE_NAME: &str = "pi-kiosk-session";
 pub const LOGIN_PATH: &str = "/login";
 
 pub async fn require_auth(
-    State(state): State<Arc<AppState>>,
+    axum::Extension(state): axum::Extension<Arc<AppState>>,
     req: Request,
     next: Next,
 ) -> Response {
@@ -51,7 +51,7 @@ pub async fn require_auth(
 }
 
 pub async fn optional_auth(
-    State(state): State<Arc<AppState>>,
+    axum::Extension(state): axum::Extension<Arc<AppState>>,
     req: Request,
     next: Next,
 ) -> Response {
@@ -73,6 +73,8 @@ fn is_public_path(path: &str) -> bool {
     path == LOGIN_PATH
         || path == "/api/login"
         || path == "/api/logout"
+        || path == "/api/has_users"
+        || path == "/api/create_initial_user"
         || path.starts_with("/pkg/")
         || path.starts_with("/style/")
         || path.starts_with("/favicon")

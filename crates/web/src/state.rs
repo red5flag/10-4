@@ -1,6 +1,6 @@
 use pi_kiosk_core::{
-    AppConfig, CameraStatus, ConnectedClient, DashboardSnapshot, DetectionEvent, ModemStatus,
-    SystemStats, WanSource, WanStatus,
+    AppConfig, AudioStatus, CameraStatus, ConnectedClient, DashboardSnapshot, DetectionEvent,
+    GpsStatus, HardwareInventory, MeshStatus, ModemStatus, SystemStats, WanSource, WanStatus,
 };
 use pi_kiosk_db::Database;
 use std::sync::Arc;
@@ -17,6 +17,10 @@ pub struct LiveState {
     pub wan_status: watch::Receiver<WanStatus>,
     pub camera_status: watch::Receiver<CameraStatus>,
     pub modem_status: watch::Receiver<ModemStatus>,
+    pub gps_status: watch::Receiver<GpsStatus>,
+    pub audio_status: watch::Receiver<AudioStatus>,
+    pub mesh_status: watch::Receiver<MeshStatus>,
+    pub hardware: watch::Receiver<HardwareInventory>,
     pub connected_clients: watch::Receiver<Vec<ConnectedClient>>,
     pub recent_events: watch::Receiver<Vec<DetectionEvent>>,
     pub recording: watch::Receiver<bool>,
@@ -120,6 +124,10 @@ pub fn create_live_state() -> LiveState {
         registered: false,
         connected: false,
     });
+    let (gps_tx, gps_rx) = watch::channel(GpsStatus::default());
+    let (audio_tx, audio_rx) = watch::channel(AudioStatus::default());
+    let (mesh_tx, mesh_rx) = watch::channel(MeshStatus::default());
+    let (hw_tx, hw_rx) = watch::channel(HardwareInventory::default());
     let (clients_tx, clients_rx) = watch::channel(Vec::new());
     let (events_tx, events_rx) = watch::channel(Vec::new());
     let (recording_tx, recording_rx) = watch::channel(false);
@@ -132,6 +140,10 @@ pub fn create_live_state() -> LiveState {
         wan: wan_tx,
         camera: camera_tx,
         modem: modem_tx,
+        gps: gps_tx,
+        audio: audio_tx,
+        mesh: mesh_tx,
+        hardware: hw_tx,
         connected_clients: clients_tx,
         recent_events: events_tx,
         recording: recording_tx,
@@ -148,6 +160,10 @@ pub fn create_live_state() -> LiveState {
         wan_status: wan_rx,
         camera_status: camera_rx,
         modem_status: modem_rx,
+        gps_status: gps_rx,
+        audio_status: audio_rx,
+        mesh_status: mesh_rx,
+        hardware: hw_rx,
         connected_clients: clients_rx,
         recent_events: events_rx,
         recording: recording_rx,
@@ -161,6 +177,10 @@ pub struct LiveSenders {
     pub wan: watch::Sender<WanStatus>,
     pub camera: watch::Sender<CameraStatus>,
     pub modem: watch::Sender<ModemStatus>,
+    pub gps: watch::Sender<GpsStatus>,
+    pub audio: watch::Sender<AudioStatus>,
+    pub mesh: watch::Sender<MeshStatus>,
+    pub hardware: watch::Sender<HardwareInventory>,
     pub connected_clients: watch::Sender<Vec<ConnectedClient>>,
     pub recent_events: watch::Sender<Vec<DetectionEvent>>,
     pub recording: watch::Sender<bool>,
@@ -193,6 +213,18 @@ pub async fn spawn_workers(state: Arc<AppState>) {
 
     // Spawn modem status worker
     tokio::spawn(modem_worker());
+
+    // Spawn GPS status worker
+    tokio::spawn(gps_worker());
+
+    // Spawn audio status worker
+    tokio::spawn(audio_worker());
+
+    // Spawn radio/mesh status worker
+    tokio::spawn(radio_worker());
+
+    // Spawn hardware detection worker
+    tokio::spawn(hardware_worker());
 
     // Spawn failover worker
     tokio::spawn(failover_worker(state.clone()));
@@ -382,6 +414,163 @@ async fn modem_worker() {
             let status = manager.get_status();
             let _ = senders.modem.send(status);
         }
+    }
+}
+
+async fn gps_worker() {
+    let senders = match get_live_senders() {
+        Some(s) => s,
+        None => return,
+    };
+
+    let mut reader: Option<pi_kiosk_gps::GpsReader> = None;
+    let mut detect_failures: u32 = 0;
+    let mut delay = tokio::time::Duration::from_secs(10);
+
+    tracing::info!("GPS status worker started");
+
+    loop {
+        tokio::time::sleep(delay).await;
+
+        if reader.is_none() {
+            if let Some(port) = pi_kiosk_gps::GpsReader::detect_port() {
+                tracing::info!("GPS port detected: {}", port);
+                reader = Some(pi_kiosk_gps::GpsReader::new(&port));
+                delay = tokio::time::Duration::from_secs(10);
+            } else {
+                detect_failures += 1;
+                if detect_failures == 1 {
+                    tracing::info!("no GPS device found, will retry periodically");
+                }
+                if detect_failures > 6 {
+                    delay = tokio::time::Duration::from_secs(60);
+                }
+                continue;
+            }
+        }
+
+        if let Some(r) = &reader {
+            match r.read_status().await {
+                Ok(gps_status) => {
+                    let status = pi_kiosk_core::GpsStatus {
+                        latitude: gps_status.fix.as_ref().map(|f| f.latitude),
+                        longitude: gps_status.fix.as_ref().map(|f| f.longitude),
+                        altitude: gps_status.fix.as_ref().and_then(|f| f.altitude),
+                        speed_knots: gps_status.fix.as_ref().and_then(|f| f.speed_knots),
+                        satellites_visible: gps_status.satellites_visible,
+                        satellites_used: gps_status.satellites_used,
+                        has_fix: gps_status.fix.is_some(),
+                        last_update: gps_status.last_update,
+                    };
+                    let _ = senders.gps.send(status);
+                }
+                Err(e) => {
+                    tracing::warn!("GPS read failed: {e}, resetting reader");
+                    reader = None;
+                    detect_failures = 0;
+                    delay = tokio::time::Duration::from_secs(10);
+                }
+            }
+        }
+    }
+}
+
+async fn audio_worker() {
+    let senders = match get_live_senders() {
+        Some(s) => s,
+        None => return,
+    };
+
+    let monitor = pi_kiosk_audio::AudioMonitor::new();
+    let mut detect_failures: u32 = 0;
+    let mut delay = tokio::time::Duration::from_secs(15);
+
+    tracing::info!("audio status worker started");
+
+    loop {
+        tokio::time::sleep(delay).await;
+
+        let status = monitor.snapshot();
+
+        if !status.device_available {
+            detect_failures += 1;
+            if detect_failures == 1 {
+                tracing::info!("no audio device found, will retry periodically");
+            }
+            if detect_failures > 4 {
+                delay = tokio::time::Duration::from_secs(60);
+            }
+        } else {
+            detect_failures = 0;
+            delay = tokio::time::Duration::from_secs(15);
+        }
+
+        let _ = senders.audio.send(status);
+    }
+}
+
+async fn radio_worker() {
+    let senders = match get_live_senders() {
+        Some(s) => s,
+        None => return,
+    };
+
+    let mut manager = pi_kiosk_radio::MeshManager::new();
+    let mut detected = false;
+    let mut delay = tokio::time::Duration::from_secs(15);
+    let mut detect_failures: u32 = 0;
+
+    tracing::info!("radio/mesh status worker started");
+
+    loop {
+        tokio::time::sleep(delay).await;
+
+        if !detected {
+            detected = manager.detect();
+            if detected {
+                tracing::info!("radio device detected");
+                delay = tokio::time::Duration::from_secs(15);
+            } else {
+                detect_failures += 1;
+                if detect_failures == 1 {
+                    tracing::info!("no radio device found, will retry periodically");
+                }
+                if detect_failures > 4 {
+                    delay = tokio::time::Duration::from_secs(60);
+                }
+                continue;
+            }
+        }
+
+        if detected {
+            let mesh_status = manager.get_status();
+            let status = pi_kiosk_core::MeshStatus {
+                radio_present: mesh_status.radio_present,
+                node_id: mesh_status.node_id,
+                frequency_mhz: mesh_status.frequency_mhz,
+                tx_power_dbm: mesh_status.tx_power_dbm,
+                node_count: mesh_status.nodes.len() as u32,
+                last_update: mesh_status.last_update,
+            };
+            let _ = senders.mesh.send(status);
+        }
+    }
+}
+
+async fn hardware_worker() {
+    let senders = match get_live_senders() {
+        Some(s) => s,
+        None => return,
+    };
+
+    let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(30));
+
+    tracing::info!("hardware detection worker started");
+
+    loop {
+        interval.tick().await;
+        let inventory = pi_kiosk_core::hardware::detect_hardware();
+        let _ = senders.hardware.send(inventory);
     }
 }
 
@@ -605,6 +794,36 @@ async fn failover_worker(state: Arc<AppState>) {
                     "health check failed on {:?}, switched to {:?}",
                     current_source, candidate
                 );
+
+                let (iface, gateway) = match candidate {
+                    pi_kiosk_core::WanSource::Ethernet => ("eth0".to_string(), wan.gateway.clone().unwrap_or_default()),
+                    pi_kiosk_core::WanSource::Wifi => ("wlan0".to_string(), wan.gateway.clone().unwrap_or_default()),
+                    pi_kiosk_core::WanSource::Cellular => (config.cellular.interface.clone(), String::new()),
+                };
+
+                if candidate == pi_kiosk_core::WanSource::Cellular {
+                    let _ = crate::priv_client::send_request_ok(
+                        &pi_kiosk_privileged::proto::PrivRequest::CellularConnect {
+                            apn: config.cellular.apn.clone(),
+                            interface: iface.clone(),
+                        },
+                    ).await;
+                }
+
+                let _ = crate::priv_client::send_request_ok(
+                    &pi_kiosk_privileged::proto::PrivRequest::InterfaceUp {
+                        interface: iface.clone(),
+                    },
+                ).await;
+
+                if !gateway.is_empty() {
+                    let _ = crate::priv_client::send_request_ok(
+                        &pi_kiosk_privileged::proto::PrivRequest::SetDefaultRoute {
+                            interface: iface,
+                            gateway,
+                        },
+                    ).await;
+                }
 
                 if let Err(e) = state
                     .db

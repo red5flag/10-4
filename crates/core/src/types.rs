@@ -88,6 +88,49 @@ pub struct ModemStatus {
     pub connected: bool,
 }
 
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct GpsStatus {
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
+    pub altitude: Option<f64>,
+    pub speed_knots: Option<f64>,
+    pub satellites_visible: u32,
+    pub satellites_used: u32,
+    pub has_fix: bool,
+    pub last_update: Option<chrono::DateTime<chrono::Utc>>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct AudioStatus {
+    pub device_available: bool,
+    pub device_name: Option<String>,
+    pub mic_level: Option<f32>,
+    pub volume_pct: Option<u8>,
+    pub muted: bool,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct HardwareInventory {
+    pub modem_present: bool,
+    pub gps_present: bool,
+    pub audio_present: bool,
+    pub poe_hat_present: bool,
+    pub camera_present: bool,
+    pub radio_present: bool,
+    pub serial_ports: Vec<String>,
+    pub i2c_devices: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct MeshStatus {
+    pub radio_present: bool,
+    pub node_id: Option<String>,
+    pub frequency_mhz: Option<f32>,
+    pub tx_power_dbm: Option<i32>,
+    pub node_count: u32,
+    pub last_update: Option<chrono::DateTime<chrono::Utc>>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConnectedClient {
     pub hostname: String,

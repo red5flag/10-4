@@ -2,6 +2,7 @@ use pi_kiosk_core::{DetectionEvent, DetectionKind};
 use std::path::Path;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
+use tract_onnx::prelude::*;
 
 const COCO_PERSON_CLASS_ID: usize = 0;
 const INPUT_WIDTH: usize = 320;
@@ -9,6 +10,7 @@ const INPUT_HEIGHT: usize = 320;
 
 pub struct PersonDetector {
     model_path: Mutex<Option<String>>,
+    model: Mutex<Option<TypedRunnableModel<TypedModel>>>,
     enabled: bool,
     confidence_threshold: f32,
     cooldown_secs: u64,
@@ -20,6 +22,7 @@ impl PersonDetector {
     pub fn new(confidence_threshold: f32, cooldown_secs: u64) -> Self {
         Self {
             model_path: Mutex::new(None),
+            model: Mutex::new(None),
             enabled: false,
             confidence_threshold,
             cooldown_secs,
@@ -32,8 +35,20 @@ impl PersonDetector {
         if !Path::new(model_path).exists() {
             anyhow::bail!("model file not found: {}", model_path);
         }
+
+        let model = tract_onnx::onnx()
+            .model_for_path(model_path)
+            .map_err(|e| anyhow::anyhow!("failed to load ONNX model: {e}"))?
+            .with_input_fact(0, InferenceFact::dt(f32::datum_type()))
+            .map_err(|e| anyhow::anyhow!("failed to set input fact: {e}"))?
+            .into_optimized()
+            .map_err(|e| anyhow::anyhow!("failed to optimize model: {e}"))?
+            .into_runnable()
+            .map_err(|e| anyhow::anyhow!("failed to make model runnable: {e}"))?;
+
+        *self.model.lock().unwrap() = Some(model);
         *self.model_path.lock().unwrap() = Some(model_path.to_string());
-        tracing::info!("person detection model path set: {}", model_path);
+        tracing::info!("person detection ONNX model loaded: {}", model_path);
         Ok(())
     }
 
@@ -101,22 +116,28 @@ impl PersonDetector {
     }
 
     fn run_inference(&self, frame: &[u8], width: u32, height: u32) -> Option<Vec<PersonDetection>> {
-        let _input = preprocess_frame(frame, width, height)?;
-        let model_path = self.model_path.lock().unwrap().clone()?;
+        let input_vec = preprocess_frame(frame, width, height)?;
 
-        tracing::trace!("running person inference with model: {}", model_path);
+        let model_guard = self.model.lock().unwrap();
+        let model = model_guard.as_ref()?;
 
-        let mut results = Vec::new();
-        results.push(PersonDetection {
-            class_id: COCO_PERSON_CLASS_ID,
-            confidence: 0.85,
-            x: 0.2,
-            y: 0.3,
-            width: 0.4,
-            height: 0.5,
-        });
+        let shape = &[1usize, 3, INPUT_HEIGHT, INPUT_WIDTH];
+        let array = tract_ndarray::ArrayD::from_shape_vec(
+            tract_ndarray::IxDyn(shape),
+            input_vec,
+        ).ok()?;
 
-        Some(results)
+        let input_tensor = Tensor::from(array);
+
+        let outputs = model
+            .run(tvec![input_tensor.into()])
+            .map_err(|e| {
+                tracing::warn!("inference failed: {e}");
+            })
+            .ok()?;
+
+        let output = outputs[0].to_array_view::<f32>().ok()?;
+        parse_yolo_output(&output)
     }
 }
 
@@ -162,4 +183,61 @@ fn preprocess_frame(frame: &[u8], width: u32, height: u32) -> Option<Vec<f32>> {
     }
 
     Some(input)
+}
+
+fn parse_yolo_output(output: &tract_ndarray::ArrayViewD<f32>) -> Option<Vec<PersonDetection>> {
+    let shape = output.shape();
+
+    if shape.len() < 3 {
+        return None;
+    }
+
+    let num_boxes = shape[1];
+    let data_len = shape[2];
+
+    if data_len < 6 {
+        return None;
+    }
+
+    let mut results = Vec::new();
+
+    for i in 0..num_boxes {
+        let obj_score = output.get([0, i, 4]).copied().unwrap_or(0.0);
+
+        if obj_score < 0.25 {
+            continue;
+        }
+
+        let x = output.get([0, i, 0]).copied().unwrap_or(0.0);
+        let y = output.get([0, i, 1]).copied().unwrap_or(0.0);
+        let w = output.get([0, i, 2]).copied().unwrap_or(0.0);
+        let h = output.get([0, i, 3]).copied().unwrap_or(0.0);
+
+        let mut best_class = 0;
+        let mut best_score = 0.0f32;
+        for c in 0..(data_len - 5) {
+            let score = output.get([0, i, 5 + c]).copied().unwrap_or(0.0);
+            if score > best_score {
+                best_score = score;
+                best_class = c;
+            }
+        }
+
+        let confidence = obj_score * best_score;
+
+        results.push(PersonDetection {
+            class_id: best_class,
+            confidence,
+            x,
+            y,
+            width: w,
+            height: h,
+        });
+    }
+
+    if results.is_empty() {
+        None
+    } else {
+        Some(results)
+    }
 }

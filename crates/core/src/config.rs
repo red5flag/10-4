@@ -11,6 +11,7 @@ pub struct AppConfig {
     pub failover: FailoverConfig,
     pub storage: StorageConfig,
     pub network: NetworkConfig,
+    pub cellular: CellularConfig,
     pub tor: TorConfig,
     pub tls: TlsConfig,
 }
@@ -101,6 +102,23 @@ pub struct TlsConfig {
     pub key_path: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CellularConfig {
+    pub apn: String,
+    pub interface: String,
+    pub auto_connect: bool,
+}
+
+impl Default for CellularConfig {
+    fn default() -> Self {
+        Self {
+            apn: "internet".into(),
+            interface: "wwan0".into(),
+            auto_connect: false,
+        }
+    }
+}
+
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
@@ -159,6 +177,7 @@ impl Default for AppConfig {
                 use_bridges: false,
                 bridge_lines: Vec::new(),
             },
+            cellular: CellularConfig::default(),
             tls: TlsConfig::default(),
         }
     }

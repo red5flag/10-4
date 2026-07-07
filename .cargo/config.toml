@@ -1,0 +1,11 @@
+[build]
+# Default target — can be overridden with --target flag or CARGO_BUILD_TARGET env
+# target = "aarch64-unknown-linux-gnu"
+
+[target.aarch64-unknown-linux-gnu]
+# Install with: sudo apt install gcc-aarch64-linux-gnu
+linker = "aarch64-linux-gnu-gcc"
+
+[target.armv7-unknown-linux-gnueabihf]
+# Install with: sudo apt install gcc-arm-linux-gnueabihf
+linker = "arm-linux-gnueabihf-gcc"

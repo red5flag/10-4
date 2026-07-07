@@ -376,6 +376,157 @@ async fn dispatch(request: PrivRequest) -> PrivResponse {
                 Err(e) => PrivResponse::Error(format!("failed to run ip: {e}")),
             }
         }
+        PrivRequest::CellularConnect { apn, interface } => {
+            info!("cellular connect: apn={} iface={}", apn, interface);
+
+            // Try ModemManager first (nmcli)
+            let nmcli = tokio::process::Command::new("nmcli")
+                .args(["device", "connect", &interface])
+                .output()
+                .await;
+
+            let nmcli_ok = matches!(nmcli, Ok(o) if o.status.success());
+
+            if nmcli_ok {
+                info!("cellular connected via nmcli");
+                PrivResponse::Ok
+            } else {
+                // Fallback: configure wwan0 manually via AT commands + DHCP
+                // Find the modem's AT command port
+                let at_port = find_modem_at_port();
+
+                if let Some(port) = at_port {
+                    let at = AtCmdRunner::new(&port);
+
+                    // Set PDP context with APN
+                    let _ = at.run(&format!("AT+CGDCONT=1,\"IP\",\"{}\"", apn)).await;
+                    // Activate PDP context
+                    let _ = at.run("AT+CGACT=1,1").await;
+                    // Enter data mode
+                    let _ = at.run("AT+CGDATA=1,1").await;
+
+                    // Bring up the interface and get IP via DHCP
+                    let _ = tokio::process::Command::new("ip")
+                        .args(["link", "set", &interface, "up"])
+                        .output()
+                        .await;
+
+                    // Wait for carrier
+                    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+
+                    let dhclient = tokio::process::Command::new("dhclient")
+                        .arg(&interface)
+                        .output()
+                        .await;
+
+                    match dhclient {
+                        Ok(o) if o.status.success() => {
+                            info!("cellular connected via AT+dhclient on {}", interface);
+                            PrivResponse::Ok
+                        }
+                        Ok(o) => PrivResponse::Error(format!(
+                            "dhclient failed: {}",
+                            String::from_utf8_lossy(&o.stderr)
+                        )),
+                        Err(e) => PrivResponse::Error(format!("failed to run dhclient: {e}")),
+                    }
+                } else {
+                    PrivResponse::Error("no modem AT port found for cellular connect".into())
+                }
+            }
+        }
+        PrivRequest::CellularDisconnect { interface } => {
+            info!("cellular disconnect: iface={}", interface);
+
+            // Try nmcli first
+            let nmcli = tokio::process::Command::new("nmcli")
+                .args(["device", "disconnect", &interface])
+                .output()
+                .await;
+
+            if matches!(nmcli, Ok(o) if o.status.success()) {
+                info!("cellular disconnected via nmcli");
+                return PrivResponse::Ok;
+            }
+
+            // Fallback: bring interface down
+            let _ = tokio::process::Command::new("ip")
+                .args(["link", "set", &interface, "down"])
+                .output()
+                .await;
+
+            // Deactivate PDP context via AT
+            let at_port = find_modem_at_port();
+            if let Some(port) = at_port {
+                let at = AtCmdRunner::new(&port);
+                let _ = at.run("AT+CGACT=0,1").await;
+            }
+
+            PrivResponse::Ok
+        }
+    }
+}
+
+fn find_modem_at_port() -> Option<String> {
+    let candidates = ["/dev/ttyUSB2", "/dev/ttyUSB1", "/dev/ttyACM0", "/dev/ttyACM1"];
+    for path in &candidates {
+        if std::path::Path::new(path).exists() {
+            return Some(path.to_string());
+        }
+    }
+    None
+}
+
+struct AtCmdRunner {
+    port_path: String,
+}
+
+impl AtCmdRunner {
+    fn new(port_path: &str) -> Self {
+        Self { port_path: port_path.to_string() }
+    }
+
+    async fn run(&self, cmd: &str) -> Result<String, String> {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        use tokio_serial::{SerialPort, SerialPortBuilderExt};
+
+        let mut port = tokio_serial::new(&self.port_path, 115_200)
+            .timeout(std::time::Duration::from_secs(3))
+            .open_native_async()
+            .map_err(|e| format!("open serial: {e}"))?;
+
+        port.write_data_terminal_ready(true).ok();
+        port.write_request_to_send(true).ok();
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        port.flush().await.ok();
+
+        let full_cmd = format!("{}\r\n", cmd);
+        port.write_all(full_cmd.as_bytes()).await.map_err(|e| format!("write: {e}"))?;
+        port.flush().await.map_err(|e| format!("flush: {e}"))?;
+
+        let mut response = String::new();
+        let mut buf = [0u8; 1024];
+        let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(3);
+
+        loop {
+            let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
+            if remaining.is_zero() {
+                break;
+            }
+            let read_fut = port.read(&mut buf);
+            match tokio::time::timeout(remaining, read_fut).await {
+                Ok(Ok(0)) => break,
+                Ok(Ok(n)) => {
+                    response.push_str(&String::from_utf8_lossy(&buf[..n]));
+                    if response.contains("OK\r\n") || response.contains("ERROR\r\n") {
+                        break;
+                    }
+                }
+                Ok(Err(_)) | Err(_) => break,
+            }
+        }
+
+        Ok(response)
     }
 }
 

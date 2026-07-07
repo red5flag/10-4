@@ -18,6 +18,12 @@ if ! id "pikiosk" &>/dev/null; then
     useradd --system --no-create-home --shell /usr/sbin/nologin pikiosk
 fi
 
+# Add to hardware access groups
+usermod -aG dialout pikiosk 2>/dev/null || true
+usermod -aG audio pikiosk 2>/dev/null || true
+usermod -aG i2c pikiosk 2>/dev/null || true
+usermod -aG gpio pikiosk 2>/dev/null || true
+
 # Create directories
 echo "Creating directories…"
 mkdir -p "$DATA_DIR/clips"
@@ -41,6 +47,11 @@ echo "Installing systemd units…"
 install -m 644 systemd/pi-kiosk-web.service "$SERVICE_DIR/pi-kiosk-web.service"
 install -m 644 systemd/pi-kiosk-priv.service "$SERVICE_DIR/pi-kiosk-priv.service"
 install -m 644 systemd/kiosk-browser.service "$SERVICE_DIR/kiosk-browser.service"
+
+echo "Installing udev rules…"
+install -m 644 udev/99-pi-kiosk-modem.rules /etc/udev/rules.d/99-pi-kiosk-modem.rules
+udevadm trigger --subsystem-match=tty --subsystem-match=usb 2>/dev/null || true
+udevadm trigger --subsystem-match=sound 2>/dev/null || true
 
 # Set ownership
 echo "Setting ownership…"

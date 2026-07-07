@@ -17,7 +17,7 @@ Runs as a kiosk on the DSI touchscreen and is also accessible from LAN devices.
 # Apply DB migration
 sqlite3 /var/lib/pi-kiosk/kiosk.db < migrations/001_init.sql
 
-# Build all crates
+# Build all crates (native, on Pi or matching arch)
 cargo build --release
 
 # Run web server (dev)
@@ -28,18 +28,63 @@ cargo run -p pi-kiosk-web
 sudo cargo run -p pi-kiosk-priv
 ```
 
+## Cross-Compilation
+
+Build on x86_64 for Raspberry Pi (32-bit or 64-bit):
+
+```bash
+# 64-bit (aarch64) — recommended for Pi 4B 8GB
+rustup target add aarch64-unknown-linux-gnu
+sudo apt install gcc-aarch64-linux-gnu
+./scripts/cross-compile.sh arm64
+
+# 32-bit (armhf) — for Pi Desktop OS 32-bit
+rustup target add armv7-unknown-linux-gnueabihf
+sudo apt install gcc-arm-linux-gnueabihf
+./scripts/cross-compile.sh armhf
+```
+
+## Building an SD Card Image
+
+```bash
+# 64-bit (default)
+sudo bash scripts/build-image.sh --arch arm64
+
+# 32-bit
+sudo bash scripts/build-image.sh --arch armhf
+
+# Stage files only (no chroot, useful for inspection)
+sudo bash scripts/build-image.sh --arch armhf --stage-only
+```
+
+Output: `images/pi-kiosk.img` — flash with `dd` or Raspberry Pi Imager.
+
 ## Repository Layout
 
 ```
 pi-kiosk/
 ├── Cargo.toml              # workspace root
+├── .cargo/config.toml      # cross-compile linker config
 ├── ARCHITECTURE.md         # full architecture & design document
 ├── migrations/             # SQLite schema
 ├── systemd/                # systemd unit files
+├── udev/                   # udev rules for modem, GPS, audio, radio
+├── config/                 # boot config.txt fragments (DT overlays)
+├── scripts/
+│   ├── build-image.sh      # SD image builder (--arch arm64|armhf)
+│   ├── cross-compile.sh    # cross-compile helper
+│   └── install.sh          # direct install on existing Pi
 └── crates/
-    ├── core/               # shared types, config, errors
+    ├── core/               # shared types, config, hardware detection
+    ├── audio/              # ALSA audio device detection + monitoring
+    ├── camera/             # camera capture, MJPEG, clips
     ├── db/                 # SQLite database layer (rusqlite, WAL)
-    ├── privileged/         # root helper binary (hostapd, nftables, wg, etc.)
+    ├── detection/          # motion + person detection (tract-onnx)
+    ├── gps/                # NMEA parsing + GPS serial reader
+    ├── modem/              # SIM7600 AT commands + ModemManager
+    ├── network/            # network status, WAN monitoring
+    ├── privileged/         # root helper (hostapd, nftables, VPN, cellular)
+    ├── radio/              # LoRa/mesh radio serial communication
     └── web/                # Leptos SSR + Axum server, pages, server functions
 ```
 

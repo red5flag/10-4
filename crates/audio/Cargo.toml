@@ -1,0 +1,11 @@
+[package]
+name = "pi-kiosk-audio"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+pi-kiosk-core = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+tracing = { workspace = true }
+anyhow = { workspace = true }

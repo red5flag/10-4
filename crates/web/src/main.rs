@@ -2,6 +2,7 @@ mod app;
 mod auth;
 mod camera_routes;
 mod pages;
+mod priv_client;
 mod server_fns;
 mod sse;
 mod state;
@@ -47,7 +48,8 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/clips/{filename}", axum::routing::get(camera_routes::clip_file))
         .with_state(leptos_opts)
         .layer(TraceLayer::new_for_http())
-        .layer(axum::Extension(state.clone()));
+        .layer(axum::Extension(state.clone()))
+        .layer(axum::middleware::from_fn(auth::require_auth));
 
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     let tls_config = state.config.read().await.tls.clone();

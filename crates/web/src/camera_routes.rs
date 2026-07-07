@@ -2,13 +2,14 @@ use axum::response::Response;
 use axum::body::Body;
 use axum::http::header;
 use std::convert::Infallible;
+use std::sync::Arc;
 
-pub async fn mjpeg_stream() -> Response {
-    let config = if let Some(senders) = crate::state::get_live_senders() {
-        pi_kiosk_core::AppConfig::default().camera
-    } else {
-        pi_kiosk_core::AppConfig::default().camera
-    };
+use crate::state::AppState;
+
+pub async fn mjpeg_stream(
+    axum::Extension(state): axum::Extension<Arc<AppState>>,
+) -> Response {
+    let config = state.config.read().await.camera.clone();
 
     let (stream, _shutdown_rx) = pi_kiosk_camera::MjpegStream::spawn(config);
 

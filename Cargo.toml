@@ -1,13 +1,16 @@
 [workspace]
 resolver = "2"
 members = [
+    "crates/audio",
     "crates/core",
     "crates/camera",
     "crates/db",
     "crates/detection",
+    "crates/gps",
     "crates/modem",
     "crates/network",
     "crates/privileged",
+    "crates/radio",
     "crates/web",
 ]
 
@@ -22,9 +25,12 @@ pi-kiosk-core = { path = "crates/core" }
 pi-kiosk-camera = { path = "crates/camera" }
 pi-kiosk-db = { path = "crates/db" }
 pi-kiosk-detection = { path = "crates/detection" }
+pi-kiosk-audio = { path = "crates/audio" }
+pi-kiosk-gps = { path = "crates/gps" }
 pi-kiosk-modem = { path = "crates/modem" }
 pi-kiosk-network = { path = "crates/network" }
 pi-kiosk-privileged = { path = "crates/privileged" }
+pi-kiosk-radio = { path = "crates/radio" }
 
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }

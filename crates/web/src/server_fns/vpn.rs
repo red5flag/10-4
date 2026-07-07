@@ -291,32 +291,22 @@ pub async fn start_tor() -> Result<(), ServerFnError> {
     std::fs::write(torrc_path, &torrc)
         .map_err(|e| FnError::ServerError(format!("failed to write torrc: {e}")))?;
 
-    let result = tokio::process::Command::new("tor")
-        .args(["-f", torrc_path])
-        .output()
-        .await;
-
-    match result {
-        Ok(o) if o.status.success() => Ok(()),
-        Ok(o) => Err(FnError::ServerError(format!(
-            "tor start failed: {}",
-            String::from_utf8_lossy(&o.stderr)
-        )).into()),
-        Err(e) => Err(FnError::ServerError(format!("failed to run tor: {e}")).into()),
-    }
+    crate::priv_client::send_request_ok(
+        &pi_kiosk_privileged::proto::PrivRequest::TorStart {
+            config_path: torrc_path.to_string(),
+        },
+    )
+    .await
+    .map_err(|e| FnError::ServerError(e).into())
 }
 
 #[server(StopTor, "/api")]
 pub async fn stop_tor() -> Result<(), ServerFnError> {
-    let result = tokio::process::Command::new("pkill")
-        .args(["-x", "tor"])
-        .output()
-        .await;
-
-    match result {
-        Ok(_) => Ok(()),
-        Err(e) => Err(FnError::ServerError(format!("failed to stop tor: {e}")).into()),
-    }
+    crate::priv_client::send_request_ok(
+        &pi_kiosk_privileged::proto::PrivRequest::TorStop,
+    )
+    .await
+    .map_err(|e| FnError::ServerError(e).into())
 }
 
 #[server(StartVpn, "/api")]
@@ -337,34 +327,22 @@ pub async fn start_vpn(id: String) -> Result<(), ServerFnError> {
 
     match config.vpn_type {
         VpnType::Wireguard => {
-            let result = tokio::process::Command::new("wg-quick")
-                .args(["up", &config.config_path])
-                .output()
-                .await;
-
-            match result {
-                Ok(o) if o.status.success() => Ok(()),
-                Ok(o) => Err(FnError::ServerError(format!(
-                    "wg-quick up failed: {}",
-                    String::from_utf8_lossy(&o.stderr)
-                )).into()),
-                Err(e) => Err(FnError::ServerError(format!("failed to run wg-quick: {e}")).into()),
-            }
+            crate::priv_client::send_request_ok(
+                &pi_kiosk_privileged::proto::PrivRequest::WireguardUp {
+                    config_path: config.config_path,
+                },
+            )
+            .await
+            .map_err(|e| FnError::ServerError(e).into())
         }
         VpnType::Openvpn => {
-            let result = tokio::process::Command::new("openvpn")
-                .args(["--config", &config.config_path, "--daemon"])
-                .output()
-                .await;
-
-            match result {
-                Ok(o) if o.status.success() => Ok(()),
-                Ok(o) => Err(FnError::ServerError(format!(
-                    "openvpn start failed: {}",
-                    String::from_utf8_lossy(&o.stderr)
-                )).into()),
-                Err(e) => Err(FnError::ServerError(format!("failed to run openvpn: {e}")).into()),
-            }
+            crate::priv_client::send_request_ok(
+                &pi_kiosk_privileged::proto::PrivRequest::OpenvpnUp {
+                    config_path: config.config_path,
+                },
+            )
+            .await
+            .map_err(|e| FnError::ServerError(e).into())
         }
     }
 }
@@ -395,30 +373,22 @@ pub async fn stop_vpn(id: String) -> Result<(), ServerFnError> {
                 .strip_suffix(".conf")
                 .unwrap_or("wg0");
 
-            let result = tokio::process::Command::new("wg-quick")
-                .args(["down", iface])
-                .output()
-                .await;
-
-            match result {
-                Ok(o) if o.status.success() => Ok(()),
-                Ok(o) => Err(FnError::ServerError(format!(
-                    "wg-quick down failed: {}",
-                    String::from_utf8_lossy(&o.stderr)
-                )).into()),
-                Err(e) => Err(FnError::ServerError(format!("failed to run wg-quick: {e}")).into()),
-            }
+            crate::priv_client::send_request_ok(
+                &pi_kiosk_privileged::proto::PrivRequest::WireguardDown {
+                    interface: iface.to_string(),
+                },
+            )
+            .await
+            .map_err(|e| FnError::ServerError(e).into())
         }
         VpnType::Openvpn => {
-            let result = tokio::process::Command::new("pkill")
-                .args(["-f", &format!("openvpn.*{}", config.config_path)])
-                .output()
-                .await;
-
-            match result {
-                Ok(_) => Ok(()),
-                Err(e) => Err(FnError::ServerError(format!("failed to stop openvpn: {e}")).into()),
-            }
+            crate::priv_client::send_request_ok(
+                &pi_kiosk_privileged::proto::PrivRequest::OpenvpnDown {
+                    interface: config.config_path,
+                },
+            )
+            .await
+            .map_err(|e| FnError::ServerError(e).into())
         }
     }
 }

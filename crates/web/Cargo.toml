@@ -7,8 +7,11 @@ edition.workspace = true
 pi-kiosk-core = { workspace = true }
 pi-kiosk-camera = { workspace = true }
 pi-kiosk-detection = { workspace = true }
+pi-kiosk-gps = { workspace = true }
+pi-kiosk-audio = { workspace = true }
 pi-kiosk-modem = { workspace = true }
 pi-kiosk-network = { workspace = true }
+pi-kiosk-radio = { workspace = true }
 pi-kiosk-db = { path = "../db" }
 pi-kiosk-privileged = { path = "../privileged" }
 

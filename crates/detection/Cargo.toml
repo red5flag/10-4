@@ -14,3 +14,5 @@ anyhow = { workspace = true }
 thiserror = { workspace = true }
 chrono = { workspace = true }
 uuid = { workspace = true }
+
+tract-onnx = "0.21"

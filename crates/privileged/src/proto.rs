@@ -22,6 +22,8 @@ pub enum PrivRequest {
     InterfaceUp { interface: String },
     InterfaceDown { interface: String },
     SetDefaultRoute { interface: String, gateway: String },
+    CellularConnect { apn: String, interface: String },
+    CellularDisconnect { interface: String },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
