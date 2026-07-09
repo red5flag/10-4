@@ -6,12 +6,14 @@ set -euo pipefail
 # Usage:
 #   ./scripts/cross-compile.sh              # default: arm64
 #   ./scripts/cross-compile.sh arm64        # 64-bit (aarch64)
-#   ./scripts/cross-compile.sh armhf        # 32-bit (armv7)
+#   ./scripts/cross-compile.sh armhf        # 32-bit (armv7) — for Pi Desktop OS 32-bit
 #
 # Prerequisites:
-#   rustup target add aarch64-unknown-linux-gnu
-#   rustup target add armv7-unknown-linux-gnueabihf
-#   sudo apt install gcc-aarch64-linux-gnu gcc-arm-linux-gnueabihf
+#   cargo install cross
+#   podman or docker installed
+#
+# The `cross` tool uses container images with pre-configured cross-compilation
+# environments, avoiding the need to install matching sysroots on the host.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -32,42 +34,34 @@ case "$ARCH" in
         ;;
 esac
 
-echo "=== Cross-compiling pi-kiosk for $ARCH ($TARGET) ==="
-
-cd "$PROJECT_DIR"
-
-# Check target is installed
-if ! rustup target list --installed | grep -q "$TARGET"; then
-    echo "ERROR: Rust target $TARGET not installed"
-    echo "  Run: rustup target add $TARGET"
+# Detect container engine
+if command -v podman &>/dev/null; then
+    export CROSS_CONTAINER_ENGINE=podman
+    export CROSS_CONTAINER_OPTS="--security-opt label=disable"
+elif command -v docker &>/dev/null; then
+    export CROSS_CONTAINER_ENGINE=docker
+else
+    echo "ERROR: Neither podman nor docker found"
+    echo "Install one of:"
+    echo "  sudo zypper install podman    # openSUSE"
+    echo "  sudo apt install podman       # Debian/Ubuntu"
     exit 1
 fi
 
-# Check linker
-case "$TARGET" in
-    aarch64-unknown-linux-gnu)
-        if ! command -v aarch64-linux-gnu-gcc &>/dev/null; then
-            echo "ERROR: aarch64-linux-gnu-gcc not found"
-            echo "  Run: sudo apt install gcc-aarch64-linux-gnu"
-            exit 1
-        fi
-        ;;
-    armv7-unknown-linux-gnueabihf)
-        if ! command -v arm-linux-gnueabihf-gcc &>/dev/null; then
-            echo "ERROR: arm-linux-gnueabihf-gcc not found"
-            echo "  Run: sudo apt install gcc-arm-linux-gnueabihf"
-            exit 1
-        fi
-        ;;
-esac
+echo "=== Cross-compiling pi-kiosk for $ARCH ($TARGET) using $CROSS_CONTAINER_ENGINE ==="
 
-cargo build --release --target "$TARGET" --bin pi-kiosk-web --bin pi-kiosk-priv
+cd "$PROJECT_DIR"
+
+cross build --release --target "$TARGET" --bin pi-kiosk-web --bin pi-kiosk-priv
 
 echo ""
 echo "=== Cross-compile complete ==="
 echo "Binaries at: target/$TARGET/release/"
-echo "  pi-kiosk-web"
-echo "  pi-kiosk-priv"
+echo "  pi-kiosk-web  ($(file -b target/$TARGET/release/pi-kiosk-web | cut -d, -f1-2))"
+echo "  pi-kiosk-priv ($(file -b target/$TARGET/release/pi-kiosk-priv | cut -d, -f1-2))"
 echo ""
-echo "Build image with:"
+echo "Package for distribution:"
+echo "  tar czf pi-kiosk-$ARCH.tar.gz -C target/$TARGET/release pi-kiosk-web pi-kiosk-priv"
+echo ""
+echo "Build SD image with:"
 echo "  sudo bash scripts/build-image.sh --arch $ARCH"

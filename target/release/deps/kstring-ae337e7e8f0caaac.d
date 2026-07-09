@@ -1,0 +1,12 @@
+/home/red/Projects/104/target/release/deps/kstring-ae337e7e8f0caaac.d: /home/red/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-2.0.2/src/lib.rs /home/red/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-2.0.2/src/stack.rs /home/red/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-2.0.2/src/string.rs /home/red/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-2.0.2/src/string_cow.rs /home/red/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-2.0.2/src/string_ref.rs /home/red/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-2.0.2/src/backend.rs
+
+/home/red/Projects/104/target/release/deps/libkstring-ae337e7e8f0caaac.rlib: /home/red/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-2.0.2/src/lib.rs /home/red/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-2.0.2/src/stack.rs /home/red/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-2.0.2/src/string.rs /home/red/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-2.0.2/src/string_cow.rs /home/red/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-2.0.2/src/string_ref.rs /home/red/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-2.0.2/src/backend.rs
+
+/home/red/Projects/104/target/release/deps/libkstring-ae337e7e8f0caaac.rmeta: /home/red/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-2.0.2/src/lib.rs /home/red/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-2.0.2/src/stack.rs /home/red/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-2.0.2/src/string.rs /home/red/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-2.0.2/src/string_cow.rs /home/red/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-2.0.2/src/string_ref.rs /home/red/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-2.0.2/src/backend.rs
+
+/home/red/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-2.0.2/src/lib.rs:
+/home/red/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-2.0.2/src/stack.rs:
+/home/red/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-2.0.2/src/string.rs:
+/home/red/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-2.0.2/src/string_cow.rs:
+/home/red/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-2.0.2/src/string_ref.rs:
+/home/red/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-2.0.2/src/backend.rs:

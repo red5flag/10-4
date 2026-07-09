@@ -1,0 +1,1 @@
+cargo:rustc-env=MIME_TYPES_GENERATED_PATH=/target/armv7-unknown-linux-gnueabihf/release/build/mime_guess-fe52fbbdf6559cbd/out/mime_types_generated.rs

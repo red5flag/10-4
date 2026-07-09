@@ -3,9 +3,11 @@
 # target = "aarch64-unknown-linux-gnu"
 
 [target.aarch64-unknown-linux-gnu]
-# Install with: sudo apt install gcc-aarch64-linux-gnu
+# Debian/Ubuntu: sudo apt install gcc-aarch64-linux-gnu
+# openSUSE: sudo zypper install cross-armv7l-gcc13 (uses aarch64-suse-linux-gnu-gcc)
 linker = "aarch64-linux-gnu-gcc"
 
 [target.armv7-unknown-linux-gnueabihf]
-# Install with: sudo apt install gcc-arm-linux-gnueabihf
-linker = "arm-linux-gnueabihf-gcc"
+# For cross-compilation with `cross` tool, this is handled automatically.
+# For manual cross-compile with zig: linker = "scripts/armhf-gcc.sh"
+# For Debian/Ubuntu: linker = "arm-linux-gnueabihf-gcc"

@@ -1,0 +1,30 @@
+# Pi-Kiosk boot config fragments
+# These are appended to /boot/config.txt during image build
+
+# PoE HAT — enable fan control overlay (official PoE HAT)
+dtoverlay=poehat
+# PoE HAT fan speed control via I2C
+dtparam=poehat_fan_temp0=50000,poehat_fan_temp1=60000,poehat_fan_temp2=70000,poehat_fan_temp3=80000
+
+# I2C — required for HAT detection, PoE fan, GPS HAT, HaLo HAT
+dtparam=i2c_arm=on
+dtparam=i2c_vc=on
+
+# SPI — required for LoRa/radio HATs (SX127x/SX126x)
+dtparam=spi=on
+
+# Serial — disable serial console to free /dev/ttyAMA0 for GPS/radio HATs
+# Keep serial hardware enabled but disable login shell on it
+enable_uart=1
+# Disable bluetooth on Pi 4 to free /dev/serial0 for HAT use
+# (uncomment if using a GPS/radio HAT on the GPIO serial pins)
+# dtoverlay=disable-bt
+
+# Audio — enable onboard audio (for Audio/Mic HAT compatibility)
+dtparam=audio=on
+
+# Camera
+start_x=1
+
+# GPU memory — ensure enough for camera + kiosk UI
+gpu_mem=256
