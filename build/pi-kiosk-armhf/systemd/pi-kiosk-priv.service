@@ -1,0 +1,35 @@
+[Unit]
+Description=Pi Kiosk Privileged Helper
+Before=pi-kiosk-web.service
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/bin/pi-kiosk-priv
+Environment=RUST_LOG=pi_kiosk_privileged=info
+Restart=on-failure
+RestartSec=3
+
+# Socket directory
+RuntimeDirectory=pi-kiosk
+RuntimeDirectoryMode=0750
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/pi-kiosk /etc/pi-kiosk
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+LockPersonality=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+SystemCallArchitectures=native
+
+# Resource limits
+LimitNOFILE=1024
+
+[Install]
+WantedBy=multi-user.target

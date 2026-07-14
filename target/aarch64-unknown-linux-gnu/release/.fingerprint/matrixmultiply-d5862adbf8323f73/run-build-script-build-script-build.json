@@ -1,0 +1,1 @@
+{"rustc":18169182855791486453,"features":"","declared_features":"","target":0,"profile":0,"path":0,"deps":[[15826188163127377936,"build_script_build",false,8677420738190502912]],"local":[{"RerunIfChanged":{"output":"aarch64-unknown-linux-gnu/release/build/matrixmultiply-d5862adbf8323f73/output","paths":["build.rs"]}}],"rustflags":[],"config":0,"compile_kind":0}

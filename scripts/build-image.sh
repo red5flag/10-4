@@ -4,6 +4,17 @@ set -euo pipefail
 # Pi-Kiosk SD image build script
 # Creates a custom Raspberry Pi OS image with pi-kiosk pre-installed
 #
+# NOTE: This script is ONLY for producing bootable SD card images to flash
+# onto physical Raspberry Pi hardware. It is NOT required (and not useful)
+# when running pi-kiosk in a VM (KVM/QEMU, Raspberry Pi Desktop x86) or on
+# a Debian/Ubuntu machine. In those cases build natively and install with:
+#   cargo build --release
+#   sudo ./scripts/install.sh --no-build
+#
+# Supported targets:
+#   arm64  (Raspberry Pi OS Lite ARM64)
+#   armhf  (Raspberry Pi OS Lite ARMv7 / 32-bit)
+#
 # Usage:
 #   sudo bash scripts/build-image.sh              # full chroot build (auto-detect arch)
 #   sudo bash scripts/build-image.sh --arch armhf  # force 32-bit (armhf)
@@ -12,11 +23,11 @@ set -euo pipefail
 #
 # Requirements (full build on x86_64 host):
 #   sudo apt install qemu-user-static binfmt-support parted util-linux
+#   For cross builds: cargo install cross, plus podman or docker
 #
 # You also need a base RaspiOS image. Download from:
 #   https://www.raspberrypi.com/software/operating-systems/
-#   Place it at build/raspios-bookworm-arm64-lite.img (or set BASE_IMAGE env)
-#   For 32-bit: build/raspios-bookworm-armhf-lite.img (or set BASE_IMAGE env)
+#   Place it at build/raspios-bookworm-<arch>-lite.img (or set BASE_IMAGE env)
 
 # Configuration
 IMAGE_NAME="${IMAGE_NAME:-pi-kiosk}"
@@ -39,16 +50,30 @@ if [ "${shift_next:-}" = true ] && [ -n "${1:-}" ]; then
     TARGET_ARCH="$1"
 fi
 
-# Auto-detect target architecture from BASE_IMAGE or default to arm64
+# Auto-detect target architecture from BASE_IMAGE or default to host architecture
 if [ -z "$TARGET_ARCH" ]; then
     if [ -n "${BASE_IMAGE:-}" ]; then
-        if echo "$BASE_IMAGE" | grep -q 'armhf'; then
-            TARGET_ARCH=armhf
-        else
-            TARGET_ARCH=arm64
-        fi
+        case "$BASE_IMAGE" in
+            *armhf*) TARGET_ARCH=armhf ;;
+            *aarch64*|*arm64*) TARGET_ARCH=arm64 ;;
+            *)
+                HOST_ARCH=$(uname -m)
+                case "$HOST_ARCH" in
+                    x86_64|amd64) TARGET_ARCH=arm64 ;;
+                    aarch64|arm64) TARGET_ARCH=arm64 ;;
+                    armv7l|armhf) TARGET_ARCH=armhf ;;
+                    *) TARGET_ARCH=arm64 ;;
+                esac
+                ;;
+        esac
     else
-        TARGET_ARCH=arm64
+        HOST_ARCH=$(uname -m)
+        case "$HOST_ARCH" in
+            x86_64|amd64) TARGET_ARCH=arm64 ;;
+            aarch64|arm64) TARGET_ARCH=arm64 ;;
+            armv7l|armhf) TARGET_ARCH=armhf ;;
+            *) TARGET_ARCH=arm64 ;;
+        esac
     fi
 fi
 
@@ -119,12 +144,12 @@ elif [ -f "$RELEASE_DIR/pi-kiosk-web" ] && [ -f "$RELEASE_DIR/pi-kiosk-priv" ]; 
 else
     echo "ERROR: Release binaries not found."
     echo ""
-    echo "For native build (on Pi):"
-    echo "  cargo build --release"
+    echo "Build first with cross tool:"
+    echo "  ./scripts/cross-compile.sh $TARGET_ARCH"
     echo ""
-    echo "For cross-compile (${TARGET_ARCH}):"
+    echo "Or manually:"
     echo "  rustup target add $CARGO_TARGET"
-    echo "  cargo build --release --target $CARGO_TARGET"
+    echo "  cargo build --release --target $CARGO_TARGET --bin pi-kiosk-web --bin pi-kiosk-priv"
     exit 1
 fi
 
@@ -143,6 +168,11 @@ if [ ! -f "$BASE_IMG" ]; then
     echo ""
     echo "For 32-bit:  --arch armhf  (armhf-lite.img)"
     echo "For 64-bit:  --arch arm64  (arm64-lite.img, default)"
+    echo ""
+    echo "NOTE: If you just want to run pi-kiosk in a VM or on a Debian/Ubuntu"
+    echo "x86 machine, you do NOT need this script. Instead run:"
+    echo "  cargo build --release"
+    echo "  sudo ./scripts/install.sh --no-build"
     exit 1
 fi
 
@@ -169,21 +199,23 @@ cp "$BIN_DIR/pi-kiosk-priv" "$WORK_DIR/root/usr/local/bin/"
 chmod 755 "$WORK_DIR/root/usr/local/bin/pi-kiosk-web" "$WORK_DIR/root/usr/local/bin/pi-kiosk-priv"
 
 echo "Copying systemd units…"
-cp "$PROJECT_DIR/systemd/pi-kiosk-priv.service" "$WORK_DIR/root/etc/systemd/system/"
-cp "$PROJECT_DIR/systemd/pi-kiosk-web.service" "$WORK_DIR/root/etc/systemd/system/"
-cp "$PROJECT_DIR/systemd/kiosk-browser.service" "$WORK_DIR/root/etc/systemd/system/"
+install -m 644 "$PROJECT_DIR/systemd/pi-kiosk-priv.service" "$WORK_DIR/root/etc/systemd/system/"
+install -m 644 "$PROJECT_DIR/systemd/pi-kiosk-web.service" "$WORK_DIR/root/etc/systemd/system/"
+install -m 644 "$PROJECT_DIR/systemd/kiosk-browser.service" "$WORK_DIR/root/etc/systemd/system/"
 
 echo "Copying database migration…"
 mkdir -p "$WORK_DIR/root/opt/pi-kiosk"
-cp "$PROJECT_DIR/migrations/001_init.sql" "$WORK_DIR/root/opt/pi-kiosk/"
+install -m 644 "$PROJECT_DIR/migrations/001_init.sql" "$WORK_DIR/root/opt/pi-kiosk/"
 
 echo "Copying udev rules…"
 mkdir -p "$WORK_DIR/root/etc/udev/rules.d"
-cp "$PROJECT_DIR/udev/99-pi-kiosk-modem.rules" "$WORK_DIR/root/etc/udev/rules.d/"
+install -m 644 "$PROJECT_DIR/udev/99-pi-kiosk-modem.rules" "$WORK_DIR/root/etc/udev/rules.d/"
 
 echo "Copying boot config fragments…"
 mkdir -p "$WORK_DIR/root/opt/pi-kiosk/boot"
-cp "$PROJECT_DIR/config/config.txt" "$WORK_DIR/root/opt/pi-kiosk/boot/config.txt" 2>/dev/null || true
+if [ -f "$PROJECT_DIR/config/config.txt" ]; then
+    install -m 644 "$PROJECT_DIR/config/config.txt" "$WORK_DIR/root/opt/pi-kiosk/boot/config.txt"
+fi
 
 if [ "$STAGE_ONLY" = true ]; then
     echo ""
@@ -191,7 +223,7 @@ if [ "$STAGE_ONLY" = true ]; then
     echo "Files staged in image at $WORK_DIR/root"
     echo ""
     echo "To finish manually on the Pi (or via chroot):"
-    echo "  1. apt install chromium-browser wg-quick openvpn tor nftables openssl sqlite3 libssl3 usb-modeswitch modemmanager libqmi-utils alsa-utils libasound2 gpsd gpsd-clients"
+    echo "  1. apt install chromium-browser wg-quick openvpn tor nftables openssl sqlite3 libssl3 usb-modeswitch modemmanager libqmi-utils libmbim-utils alsa-utils libasound2 gpsd gpsd-clients"
     echo "  2. useradd --system --no-create-home --shell /usr/sbin/nologin pikiosk"
     echo "  3. mkdir -p /var/lib/pi-kiosk/{clips,backups} /etc/pi-kiosk/{vpn,tor,tls}"
     echo "  4. sqlite3 /var/lib/pi-kiosk/kiosk.db < /opt/pi-kiosk/001_init.sql"
@@ -224,7 +256,7 @@ set -euo pipefail
 apt-get update
 apt-get install -y --no-install-recommends \
     chromium-browser \
-    wg-quick \
+    wireguard-tools \
     openvpn \
     tor \
     nftables \
@@ -242,7 +274,9 @@ apt-get install -y --no-install-recommends \
     gpsd-clients
 
 # Create user and add to hardware access groups
-useradd --system --no-create-home --shell /usr/sbin/nologin pikiosk 2>/dev/null || true
+if ! id pikiosk &>/dev/null; then
+    useradd --system --no-create-home --shell /usr/sbin/nologin pikiosk
+fi
 usermod -aG dialout pikiosk
 usermod -aG audio pikiosk
 usermod -aG i2c pikiosk

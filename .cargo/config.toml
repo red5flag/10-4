@@ -1,13 +1,18 @@
 [build]
-# Default target — can be overridden with --target flag or CARGO_BUILD_TARGET env
-# target = "aarch64-unknown-linux-gnu"
+# Default target is unset: cargo builds for the host unless --target is passed.
+# Set CARGO_BUILD_TARGET to build for a different target by default.
+
+# Native x86_64 (Debian 12 / Ubuntu 24.04 / KVM / QEMU / development)
+# No linker needed; uses the system gcc/clang.
 
 [target.aarch64-unknown-linux-gnu]
 # Debian/Ubuntu: sudo apt install gcc-aarch64-linux-gnu
-# openSUSE: sudo zypper install cross-armv7l-gcc13 (uses aarch64-suse-linux-gnu-gcc)
+# openSUSE:      sudo zypper install cross-aarch64-gcc<version>
 linker = "aarch64-linux-gnu-gcc"
 
 [target.armv7-unknown-linux-gnueabihf]
-# For cross-compilation with `cross` tool, this is handled automatically.
-# For manual cross-compile with zig: linker = "scripts/armhf-gcc.sh"
-# For Debian/Ubuntu: linker = "arm-linux-gnueabihf-gcc"
+# Debian/Ubuntu: sudo apt install gcc-arm-linux-gnueabihf
+#   linker = "arm-linux-gnueabihf-gcc"
+# openSUSE: the cross-arm-gcc13 package provides a soft-float toolchain,
+# so use the `cross` tool with a container image, or zig cc as a wrapper.
+# Example wrapper: linker = "scripts/armhf-gcc.sh"

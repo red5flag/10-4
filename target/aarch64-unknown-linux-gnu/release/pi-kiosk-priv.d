@@ -1,0 +1,1 @@
+/target/aarch64-unknown-linux-gnu/release/pi-kiosk-priv: /project/crates/core/src/config.rs /project/crates/core/src/error.rs /project/crates/core/src/hardware.rs /project/crates/core/src/lib.rs /project/crates/core/src/types.rs /project/crates/privileged/src/lib.rs /project/crates/privileged/src/main.rs /project/crates/privileged/src/proto.rs
